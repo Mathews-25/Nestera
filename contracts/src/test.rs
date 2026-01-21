@@ -187,3 +187,79 @@ fn test_xdr_compatibility_savings_plan() {
         assert_eq!(plan, retrieved_plan);
     });
 }
+
+fn test_xdr_compatibility_all_plan_types() {
+    let env = Env::default();
+    let contract_id = env.register(NesteraContract, ());
+    
+    env.as_contract(&contract_id, || {
+        // Test Flexi
+        let flexi_plan = SavingsPlan {
+            plan_id: 0,
+            plan_type: PlanType::Flexi,
+            balance: 1_000_000,
+            start_time: 1000000,
+            last_deposit: 1100000,
+            last_withdraw: 0,
+            interest_rate: 500,
+            is_completed: false,
+        };
+        env.storage().instance().set(&0u32, &flexi_plan);
+        let retrieved: SavingsPlan = env.storage().instance().get(&0u32).unwrap();
+        assert_eq!(flexi_plan, retrieved);
+        
+        // Test Lock
+        let lock_plan = SavingsPlan {
+            plan_id: 1,
+            plan_type: PlanType::Lock(2000000),
+            balance: 1_000_000,
+            start_time: 1000000,
+            last_deposit: 1100000,
+            last_withdraw: 0,
+            interest_rate: 500,
+            is_completed: false,
+        };
+        env.storage().instance().set(&1u32, &lock_plan);
+        let retrieved: SavingsPlan = env.storage().instance().get(&1u32).unwrap();
+        assert_eq!(lock_plan, retrieved);
+        
+        // Test Goal
+        let goal_plan = SavingsPlan {
+            plan_id: 2,
+            plan_type: PlanType::Goal(
+                symbol_short!("vacation"),
+                3_000_000,
+                1u32
+            ),
+            balance: 1_000_000,
+            start_time: 1000000,
+            last_deposit: 1100000,
+            last_withdraw: 0,
+            interest_rate: 500,
+            is_completed: false,
+        };
+        env.storage().instance().set(&2u32, &goal_plan);
+        let retrieved: SavingsPlan = env.storage().instance().get(&2u32).unwrap();
+        assert_eq!(goal_plan, retrieved);
+        
+        // Test Group
+        let group_plan = SavingsPlan {
+            plan_id: 3,
+            plan_type: PlanType::Group(
+                200,
+                false,
+                3u32,
+                8_000_000
+            ),
+            balance: 1_000_000,
+            start_time: 1000000,
+            last_deposit: 1100000,
+            last_withdraw: 0,
+            interest_rate: 500,
+            is_completed: false,
+        };
+        env.storage().instance().set(&3u32, &group_plan);
+        let retrieved: SavingsPlan = env.storage().instance().get(&3u32).unwrap();
+        assert_eq!(group_plan, retrieved);
+    });
+}
