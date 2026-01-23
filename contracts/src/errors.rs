@@ -209,4 +209,78 @@ pub enum SavingsError {
     InvariantViolation = 89,
 }
 
+#[cfg(test)]
+mod tests {
+    extern crate std;
+    use super::*;
 
+    #[test]
+    fn test_error_codes_are_unique() {
+        // Verify that each error has a unique code
+        let errors = std::vec![
+            SavingsError::Unauthorized as u32,
+            SavingsError::UserNotFound as u32,
+            SavingsError::UserAlreadyExists as u32,
+            SavingsError::PlanNotFound as u32,
+            SavingsError::DuplicatePlanId as u32,
+            SavingsError::PlanLocked as u32,
+            SavingsError::PlanCompleted as u32,
+            SavingsError::MaxPlansExceeded as u32,
+            SavingsError::InvalidPlanConfig as u32,
+            SavingsError::InsufficientBalance as u32,
+            SavingsError::InvalidAmount as u32,
+            SavingsError::AmountExceedsLimit as u32,
+            SavingsError::AmountBelowMinimum as u32,
+            SavingsError::InvalidTimestamp as u32,
+            SavingsError::TooEarly as u32,
+            SavingsError::TooLate as u32,
+            SavingsError::InvalidInterestRate as u32,
+            SavingsError::YieldCalculationError as u32,
+            SavingsError::GroupFull as u32,
+            SavingsError::NotGroupMember as u32,
+            SavingsError::GroupCycleIncomplete as u32,
+            SavingsError::InvalidGroupConfig as u32,
+            SavingsError::MissingParameter as u32,
+            SavingsError::DataCorruption as u32,
+            SavingsError::Overflow as u32,
+            SavingsError::Underflow as u32,
+            SavingsError::ContractPaused as u32,
+            SavingsError::DeprecatedOperation as u32,
+            SavingsError::InternalError as u32,
+            SavingsError::UnsupportedAsset as u32,
+            SavingsError::InvalidSignature as u32,
+            SavingsError::InvariantViolation as u32,
+        ];
+
+        let mut sorted = errors.clone();
+        sorted.sort();
+        sorted.dedup();
+        
+        assert_eq!(
+            errors.len(),
+            sorted.len(),
+            "Duplicate error codes detected"
+        );
+    }
+
+    #[test]
+    fn test_error_ordering() {
+        // Verify errors are properly ordered by their codes
+        assert!(SavingsError::Unauthorized < SavingsError::UserNotFound);
+        assert!(SavingsError::UserNotFound < SavingsError::PlanNotFound);
+        assert!(SavingsError::PlanNotFound < SavingsError::InsufficientBalance);
+    }
+
+    #[test]
+    fn test_error_code_values() {
+        // Verify specific error codes match expected values
+        assert_eq!(SavingsError::Unauthorized as u32, 1);
+        assert_eq!(SavingsError::UserNotFound as u32, 10);
+        assert_eq!(SavingsError::PlanNotFound as u32, 20);
+        assert_eq!(SavingsError::InsufficientBalance as u32, 40);
+        assert_eq!(SavingsError::InvalidTimestamp as u32, 50);
+        assert_eq!(SavingsError::InvalidInterestRate as u32, 60);
+        assert_eq!(SavingsError::GroupFull as u32, 70);
+        assert_eq!(SavingsError::MissingParameter as u32, 80);
+    }
+}
