@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'contracts/**'
-      - '.github/workflows/ci.yml'
+      - "contracts/**"
+      - ".github/workflows/ci.yml"
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'contracts/**'
-      - '.github/workflows/ci.yml'
+      - "contracts/**"
+      - ".github/workflows/ci.yml"
 
 env:
   RUST_BACKTRACE: 1
