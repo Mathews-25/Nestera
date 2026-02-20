@@ -13,6 +13,7 @@ pub fn create_lock_save(
     duration: u64,
 ) -> Result<u64, SavingsError> {
     ensure_not_paused(env)?;
+    // Note: user.require_auth() is already called in lib.rs wrapper function
 
     // Validate inputs
     if amount <= 0 {
@@ -72,6 +73,7 @@ pub fn create_lock_save(
 
 pub fn withdraw_lock_save(env: &Env, user: Address, lock_id: u64) -> Result<i128, SavingsError> {
     ensure_not_paused(env)?;
+    // Note: user.require_auth() is already called in lib.rs wrapper function
 
     let mut lock_save = get_lock_save(env, lock_id).ok_or(SavingsError::PlanNotFound)?;
 
