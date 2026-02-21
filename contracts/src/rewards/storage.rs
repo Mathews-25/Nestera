@@ -209,6 +209,9 @@ pub fn award_deposit_points(env: &Env, user: Address, amount: i128) -> Result<()
 
     // 6. Save and Emit Event
     save_user_rewards(env, user.clone(), &user_rewards);
+    
+    // Track user for ranking leaderboard
+    crate::rewards::ranking::track_user_for_ranking(env, user.clone());
 
     env.events().publish(
         (

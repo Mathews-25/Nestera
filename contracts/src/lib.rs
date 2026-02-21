@@ -646,6 +646,28 @@ impl NesteraContract {
         rewards::storage::update_streak(&env, user)
     }
 
+    // ========== Ranking Functions ==========
+
+    /// Gets the top N users by reward points
+    /// Read-only - no state mutation
+    pub fn get_top_users(env: Env, limit: u32) -> Vec<(Address, u128)> {
+        rewards::ranking::get_top_users(&env, limit)
+    }
+
+    /// Gets the rank of a specific user (1-indexed)
+    /// Returns 0 if user has no points or is not ranked
+    /// Read-only - no state mutation
+    pub fn get_user_rank(env: Env, user: Address) -> u32 {
+        rewards::ranking::get_user_rank(&env, &user)
+    }
+
+    /// Gets detailed ranking information for a user
+    /// Returns (rank, total_points, total_users) or None
+    /// Read-only - no state mutation
+    pub fn get_user_ranking_details(env: Env, user: Address) -> Option<(u32, u128, u32)> {
+        rewards::ranking::get_user_ranking_details(&env, &user)
+    }
+
     // ========== AutoSave Functions ==========
 
     /// Creates a new AutoSave schedule for recurring Flexi deposits

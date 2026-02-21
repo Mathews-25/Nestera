@@ -33,4 +33,5 @@ pub struct UserRewards {
 pub enum RewardsDataKey {
     Config,
     UserLedger(Address),
+    AllUsers, // Tracks all users with rewards for ranking
 }
