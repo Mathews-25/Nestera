@@ -600,6 +600,11 @@ impl NesteraContract {
         rewards::storage::get_user_rewards(&env, user)
     }
 
+    pub fn update_streak(env: Env, user: Address) -> Result<u32, SavingsError> {
+        user.require_auth();
+        rewards::storage::update_streak(&env, user)
+    }
+
     // ========== AutoSave Functions ==========
 
     /// Creates a new AutoSave schedule for recurring Flexi deposits
