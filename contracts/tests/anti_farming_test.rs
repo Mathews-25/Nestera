@@ -1,9 +1,6 @@
 #![cfg(test)]
-use soroban_sdk::{
-    testutils::{Address as _, Ledger, LedgerInfo},
-    Address, BytesN, Env,
-};
-use Nestera::{NesteraContract, NesteraContractClient, PlanType};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, Env};
+use Nestera::{NesteraContract, NesteraContractClient};
 
 fn create_test_env() -> (Env, NesteraContractClient<'static>, Address, Address) {
     let env = Env::default();
@@ -69,7 +66,7 @@ fn test_minimum_deposit_threshold() {
         config.min_deposit_for_rewards, 100,
         "Config should be initialized"
     );
-    assert_eq!(config.enabled, true, "Rewards should be enabled");
+    assert!(config.enabled, "Rewards should be enabled");
 
     // Deposit below minimum - should not earn rewards
     client.deposit_flexi(&user, &99);

@@ -3,7 +3,7 @@
 use soroban_sdk::{
     symbol_short,
     testutils::{Address as _, Events},
-    vec, Address, BytesN, Env, IntoVal, Symbol,
+    Address, BytesN, Env, IntoVal, Symbol,
 };
 use Nestera::{
     rewards::{BonusAwarded, PointsAwarded, StreakUpdated},
@@ -63,8 +63,8 @@ fn test_points_awarded_event() {
         })
         .collect();
 
-    assert!(rewards_events.len() > 0);
-    let last_event = rewards_events.get(rewards_events.len() - 1).unwrap();
+    assert!(!rewards_events.is_empty());
+    let last_event = rewards_events.last().unwrap();
     let event_data: PointsAwarded = last_event.2.clone().into_val(&env);
 
     assert_eq!(event_data.user, user);
@@ -93,8 +93,8 @@ fn test_streak_updated_event() {
         })
         .collect();
 
-    assert!(streak_events.len() > 0);
-    let event_data: StreakUpdated = streak_events.get(0).unwrap().2.clone().into_val(&env);
+    assert!(!streak_events.is_empty());
+    let event_data: StreakUpdated = streak_events.first().unwrap().2.clone().into_val(&env);
 
     assert_eq!(event_data.user, user);
     assert_eq!(event_data.streak, 1);
@@ -125,8 +125,8 @@ fn test_bonus_awarded_streak_event() {
         })
         .collect();
 
-    assert!(bonus_events.len() > 0);
-    let event_data: BonusAwarded = bonus_events.get(0).unwrap().2.clone().into_val(&env);
+    assert!(!bonus_events.is_empty());
+    let event_data: BonusAwarded = bonus_events.first().unwrap().2.clone().into_val(&env);
 
     assert_eq!(event_data.user, user);
     assert_eq!(event_data.bonus_type, Symbol::new(&env, "streak"));

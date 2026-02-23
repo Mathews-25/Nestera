@@ -34,6 +34,12 @@ pub struct User {
 }
 
 /// Represents a Lock Save plan with fixed duration
+impl Default for User {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl User {
     pub fn new() -> Self {
         Self {

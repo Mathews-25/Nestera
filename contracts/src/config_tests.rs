@@ -38,7 +38,7 @@ fn test_initialize_config_succeeds() {
     assert_eq!(config.admin, admin);
     assert_eq!(config.treasury, treasury);
     assert_eq!(config.protocol_fee_bps, 100);
-    assert_eq!(config.paused, false);
+    assert!(!config.paused);
 }
 
 #[test]
@@ -127,7 +127,7 @@ fn test_get_config_before_config_init() {
     let config = client.get_config();
     assert_eq!(config.admin, admin);
     assert_eq!(config.protocol_fee_bps, 0); // default
-    assert_eq!(config.paused, false); // default
+    assert!(!config.paused); // default
 }
 
 #[test]
@@ -270,7 +270,7 @@ fn test_pause_contract_succeeds() {
     assert!(result.is_ok(), "admin should be able to pause");
 
     let config = client.get_config();
-    assert_eq!(config.paused, true);
+    assert!(config.paused);
 }
 
 #[test]
@@ -283,7 +283,7 @@ fn test_unpause_contract_succeeds() {
     assert!(result.is_ok(), "admin should be able to unpause");
 
     let config = client.get_config();
-    assert_eq!(config.paused, false);
+    assert!(!config.paused);
 }
 
 #[test]
@@ -419,7 +419,7 @@ fn test_full_config_lifecycle() {
     let config = client.get_config();
     assert_eq!(config.treasury, treasury1);
     assert_eq!(config.protocol_fee_bps, 250);
-    assert_eq!(config.paused, false);
+    assert!(!config.paused);
 
     // 2. Update treasury
     client.set_treasury(&admin, &treasury2);
@@ -433,7 +433,7 @@ fn test_full_config_lifecycle() {
 
     // 4. Pause
     client.pause_contract(&admin);
-    assert_eq!(client.get_config().paused, true);
+    assert!(client.get_config().paused);
 
     // 5. Admin can still update config while paused
     client.set_protocol_fee(&admin, &300);
@@ -441,5 +441,5 @@ fn test_full_config_lifecycle() {
 
     // 6. Unpause
     client.unpause_contract(&admin);
-    assert_eq!(client.get_config().paused, false);
+    assert!(!client.get_config().paused);
 }

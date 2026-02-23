@@ -112,7 +112,7 @@ fn test_get_user_rank_not_ranked() {
     let (_env, client, admin, users) = create_test_env();
     setup_rewards_config(&client, &admin);
 
-    assert!(users.len() >= 1, "Need at least 1 user for test");
+    assert!(!users.is_empty(), "Need at least 1 user for test");
     let rank = client.get_user_rank(&users.get(0).unwrap());
     assert_eq!(rank, 0, "User with no points should have rank 0");
 }
@@ -245,10 +245,10 @@ fn test_large_user_set_safety() {
     // Should not panic with large user set
     let top_users = client.get_top_users(&20);
     assert!(top_users.len() <= 20, "Should respect limit");
-    assert!(top_users.len() > 0, "Should return some users");
+    assert!(!top_users.is_empty(), "Should return some users");
 
     // Top user should have most points
-    if top_users.len() > 0 {
+    if !top_users.is_empty() {
         let top1 = top_users.get(0).unwrap();
         assert_eq!(top1.1, 50 * 100 * 10, "Top user should have highest points");
     }
@@ -259,7 +259,7 @@ fn test_ranking_read_only() {
     let (_env, client, admin, users) = create_test_env();
     setup_rewards_config(&client, &admin);
 
-    assert!(users.len() >= 1, "Need at least 1 user for test");
+    assert!(!users.is_empty(), "Need at least 1 user for test");
 
     client.deposit_flexi(&users.get(0).unwrap(), &1000);
 

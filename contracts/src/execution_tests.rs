@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod execution_tests {
-    use crate::governance::{ProposalAction, VotingConfig};
+    use crate::governance::ProposalAction;
     use crate::rewards::storage_types::RewardsConfig;
     use crate::{NesteraContract, NesteraContractClient, PlanType};
     use soroban_sdk::{
@@ -29,7 +29,7 @@ mod execution_tests {
             max_daily_points: 1_000_000,
             max_streak_multiplier: 10_000,
         };
-        let _ = client.initialize_rewards_config(&config);
+        client.initialize_rewards_config(&config);
 
         (env, client, admin)
     }
@@ -38,10 +38,14 @@ mod execution_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Test proposal");
+
+        client.initialize_user(&creator);
+        let _ = client.create_savings_plan(&creator, &PlanType::Flexi, &1000); // Meets threshold
+
         let action = ProposalAction::SetFlexiRate(500);
         let proposal_id = client
             .try_create_action_proposal(&creator, &description, &action)
@@ -59,8 +63,8 @@ mod execution_tests {
         let _ = client.create_savings_plan(&voter2, &PlanType::Flexi, &2000);
 
         // Vote for the proposal
-        let _ = client.vote(&proposal_id, &1, &voter1);
-        let _ = client.vote(&proposal_id, &1, &voter2);
+        client.vote(&proposal_id, &1, &voter1);
+        client.vote(&proposal_id, &1, &voter2);
 
         (env, client, admin, proposal_id)
     }
@@ -96,10 +100,14 @@ mod execution_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Test proposal");
+
+        client.initialize_user(&creator);
+        let _ = client.create_savings_plan(&creator, &PlanType::Flexi, &1000);
+
         let action = ProposalAction::SetFlexiRate(500);
         let proposal_id = client
             .try_create_action_proposal(&creator, &description, &action)
@@ -110,7 +118,7 @@ mod execution_tests {
         let voter = Address::generate(&env);
         client.initialize_user(&voter);
         let _ = client.create_savings_plan(&voter, &PlanType::Flexi, &1000);
-        let _ = client.vote(&proposal_id, &2, &voter);
+        client.vote(&proposal_id, &2, &voter);
 
         // Advance time
         env.ledger().with_mut(|li| {
@@ -131,7 +139,7 @@ mod execution_tests {
             li.timestamp += 604800 + 1;
         });
 
-        let _ = client.queue_proposal(&proposal_id);
+        client.queue_proposal(&proposal_id);
 
         // Advance time past timelock
         env.ledger().with_mut(|li| {
@@ -158,7 +166,7 @@ mod execution_tests {
             li.timestamp += 604800 + 1;
         });
 
-        let _ = client.queue_proposal(&proposal_id);
+        client.queue_proposal(&proposal_id);
 
         // Try to execute before timelock
         let result = client.try_execute_proposal(&proposal_id);
@@ -190,7 +198,7 @@ mod execution_tests {
             li.timestamp += 604800 + 1;
         });
 
-        let _ = client.queue_proposal(&proposal_id);
+        client.queue_proposal(&proposal_id);
 
         let result = client.try_queue_proposal(&proposal_id);
         assert!(result.is_err());
@@ -206,14 +214,14 @@ mod execution_tests {
             li.timestamp += 604800 + 1;
         });
 
-        let _ = client.queue_proposal(&proposal_id);
+        client.queue_proposal(&proposal_id);
 
         // Advance time past timelock
         env.ledger().with_mut(|li| {
             li.timestamp += 86400 + 1;
         });
 
-        let _ = client.execute_proposal(&proposal_id);
+        client.execute_proposal(&proposal_id);
 
         let result = client.try_execute_proposal(&proposal_id);
         assert!(result.is_err());
@@ -225,11 +233,15 @@ mod execution_tests {
         env.mock_all_auths();
 
         // Setup governance
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         // Create proposal
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Change flexi rate");
+
+        client.initialize_user(&creator);
+        let _ = client.create_savings_plan(&creator, &PlanType::Flexi, &1000);
+
         let action = ProposalAction::SetFlexiRate(750);
         let proposal_id = client
             .try_create_action_proposal(&creator, &description, &action)
@@ -244,8 +256,8 @@ mod execution_tests {
         let _ = client.create_savings_plan(&voter1, &PlanType::Flexi, &4000);
         let _ = client.create_savings_plan(&voter2, &PlanType::Flexi, &3000);
 
-        let _ = client.vote(&proposal_id, &1, &voter1);
-        let _ = client.vote(&proposal_id, &1, &voter2);
+        client.vote(&proposal_id, &1, &voter1);
+        client.vote(&proposal_id, &1, &voter2);
 
         // Wait for voting to end
         env.ledger().with_mut(|li| {
@@ -253,7 +265,7 @@ mod execution_tests {
         });
 
         // Queue
-        let _ = client.queue_proposal(&proposal_id);
+        client.queue_proposal(&proposal_id);
 
         // Wait for timelock
         env.ledger().with_mut(|li| {
@@ -261,7 +273,7 @@ mod execution_tests {
         });
 
         // Execute
-        let _ = client.execute_proposal(&proposal_id);
+        client.execute_proposal(&proposal_id);
 
         // Verify
         assert_eq!(client.get_flexi_rate(), 750);
@@ -274,10 +286,14 @@ mod execution_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Pause contract");
+
+        client.initialize_user(&creator);
+        let _ = client.create_savings_plan(&creator, &PlanType::Flexi, &1000);
+
         let action = ProposalAction::PauseContract;
         let proposal_id = client
             .try_create_action_proposal(&creator, &description, &action)
@@ -287,17 +303,17 @@ mod execution_tests {
         let voter = Address::generate(&env);
         client.initialize_user(&voter);
         let _ = client.create_savings_plan(&voter, &PlanType::Flexi, &5000);
-        let _ = client.vote(&proposal_id, &1, &voter);
+        client.vote(&proposal_id, &1, &voter);
 
         env.ledger().with_mut(|li| {
             li.timestamp += 604800 + 1;
         });
-        let _ = client.queue_proposal(&proposal_id);
+        client.queue_proposal(&proposal_id);
 
         env.ledger().with_mut(|li| {
             li.timestamp += 86400 + 1;
         });
-        let _ = client.execute_proposal(&proposal_id);
+        client.execute_proposal(&proposal_id);
 
         assert!(client.is_paused());
     }

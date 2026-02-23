@@ -207,7 +207,7 @@ pub fn get_user_groups(env: &Env, user: &Address) -> Vec<u64> {
         .unwrap_or(Vec::new(env));
 
     // Extend TTL on list access
-    if groups.len() > 0 {
+    if !groups.is_empty() {
         ttl::extend_user_plan_list_ttl(env, &key);
     }
 

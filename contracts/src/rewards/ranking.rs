@@ -1,5 +1,5 @@
-use super::storage::{get_user_rewards, save_user_rewards};
-use super::storage_types::{RewardsDataKey, UserRewards};
+use super::storage::get_user_rewards;
+use super::storage_types::RewardsDataKey;
 use soroban_sdk::{Address, Env, Vec};
 
 /// Maximum number of users to consider for ranking calculations

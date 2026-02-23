@@ -395,7 +395,7 @@ pub fn get_user_goal_saves(env: &Env, user: &Address) -> Vec<u64> {
         .unwrap_or_else(|| Vec::new(env));
 
     // Extend TTL on list access
-    if goals.len() > 0 {
+    if !goals.is_empty() {
         ttl::extend_user_plan_list_ttl(env, &list_key);
     }
 

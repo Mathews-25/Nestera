@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod governance_tests {
-    use crate::governance::VotingConfig;
+
     use crate::rewards::storage_types::RewardsConfig;
     use crate::{NesteraContract, NesteraContractClient, PlanType};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, String};
@@ -26,7 +26,7 @@ mod governance_tests {
             max_daily_points: 1_000_000,
             max_streak_multiplier: 10_000,
         };
-        let _ = client.initialize_rewards_config(&config);
+        client.initialize_rewards_config(&config);
 
         (env, client, admin)
     }
@@ -97,7 +97,7 @@ mod governance_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let result = client.try_init_voting_config(&admin, &5000, &604800, &86400);
+        let result = client.try_init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
         assert!(result.is_ok());
 
         let config = client.try_get_voting_config().unwrap().unwrap();
@@ -111,7 +111,7 @@ mod governance_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Test proposal");
@@ -128,7 +128,7 @@ mod governance_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Test proposal");
@@ -140,7 +140,7 @@ mod governance_tests {
         let proposal = client.get_proposal(&proposal_id).unwrap();
         assert_eq!(proposal.id, 1);
         assert_eq!(proposal.creator, creator);
-        assert_eq!(proposal.executed, false);
+        assert!(!proposal.executed);
         assert_eq!(proposal.for_votes, 0);
         assert_eq!(proposal.against_votes, 0);
     }
@@ -150,7 +150,7 @@ mod governance_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let desc1 = String::from_str(&env, "Proposal 1");
@@ -170,7 +170,7 @@ mod governance_tests {
         let (env, client, admin) = setup_contract();
         env.mock_all_auths();
 
-        let _ = client.init_voting_config(&admin, &5000, &604800, &86400);
+        client.init_voting_config(&admin, &5000, &604800, &86400, &100, &10_000);
 
         let creator = Address::generate(&env);
         let description = String::from_str(&env, "Store test");

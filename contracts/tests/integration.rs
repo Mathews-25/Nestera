@@ -659,13 +659,13 @@ fn test_multi_user_multi_plan_scenario() {
 
     // Verify all plans exist and are functional
     let user_locks = client.get_user_lock_saves(&user1);
-    assert!(user_locks.len() > 0);
+    assert!(!user_locks.is_empty());
 
     let user_goals = client.get_user_goal_saves(&user1);
-    assert!(user_goals.len() > 0);
+    assert!(!user_goals.is_empty());
 
     let user_autosaves = client.get_user_autosaves(&user2);
-    assert!(user_autosaves.len() > 0);
+    assert!(!user_autosaves.is_empty());
 }
 
 #[test]

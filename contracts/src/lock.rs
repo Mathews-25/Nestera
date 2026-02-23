@@ -145,7 +145,7 @@ pub fn get_user_lock_saves(env: &Env, user: &Address) -> Vec<u64> {
         .unwrap_or_else(|| Vec::new(env));
 
     // Extend TTL on list access
-    if locks.len() > 0 {
+    if !locks.is_empty() {
         ttl::extend_user_plan_list_ttl(env, &list_key);
     }
 

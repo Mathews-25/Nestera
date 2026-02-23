@@ -57,10 +57,8 @@ pub fn emit_vote_cast(env: &Env, proposal_id: u64, voter: Address, vote_type: u3
         vote_type,
         weight,
     };
-    env.events().publish(
-        (symbol_short!("gov"), symbol_short!("voted"), voter),
-        event,
-    );
+    env.events()
+        .publish((symbol_short!("gov"), symbol_short!("voted"), voter), event);
 }
 
 pub fn emit_proposal_queued(env: &Env, proposal_id: u64, queued_at: u64) {
@@ -68,10 +66,8 @@ pub fn emit_proposal_queued(env: &Env, proposal_id: u64, queued_at: u64) {
         proposal_id,
         queued_at,
     };
-    env.events().publish(
-        (symbol_short!("gov"), symbol_short!("queued")),
-        event,
-    );
+    env.events()
+        .publish((symbol_short!("gov"), symbol_short!("queued")), event);
 }
 
 pub fn emit_proposal_executed(env: &Env, proposal_id: u64, executed_at: u64) {
@@ -79,10 +75,8 @@ pub fn emit_proposal_executed(env: &Env, proposal_id: u64, executed_at: u64) {
         proposal_id,
         executed_at,
     };
-    env.events().publish(
-        (symbol_short!("gov"), symbol_short!("executed")),
-        event,
-    );
+    env.events()
+        .publish((symbol_short!("gov"), symbol_short!("executed")), event);
 }
 
 pub fn emit_proposal_canceled(env: &Env, proposal_id: u64, canceled_at: u64) {
@@ -90,8 +84,6 @@ pub fn emit_proposal_canceled(env: &Env, proposal_id: u64, canceled_at: u64) {
         proposal_id,
         canceled_at,
     };
-    env.events().publish(
-        (symbol_short!("gov"), symbol_short!("canceled")),
-        event,
-    );
+    env.events()
+        .publish((symbol_short!("gov"), symbol_short!("canceled")), event);
 }
