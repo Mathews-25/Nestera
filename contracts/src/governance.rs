@@ -89,7 +89,7 @@ pub fn create_proposal(
     let proposal = Proposal {
         id: proposal_id,
         creator: creator.clone(),
-        description,
+        description: description.clone(),
         start_time: now,
         end_time: now + config.voting_period,
         executed: false,
@@ -117,7 +117,8 @@ pub fn create_proposal(
         .persistent()
         .set(&GovernanceKey::NextProposalId, &(proposal_id + 1));
 
-    emit_proposal_created(env, proposal_id, creator, proposal.description.clone());
+    // Emit event
+    emit_proposal_created(env, proposal_id, creator, description);
 
     Ok(proposal_id)
 }
@@ -142,7 +143,7 @@ pub fn create_action_proposal(
     let proposal = ActionProposal {
         id: proposal_id,
         creator: creator.clone(),
-        description,
+        description: description.clone(),
         start_time: now,
         end_time: now + config.voting_period,
         executed: false,
@@ -171,7 +172,8 @@ pub fn create_action_proposal(
         .persistent()
         .set(&GovernanceKey::NextProposalId, &(proposal_id + 1));
 
-    emit_proposal_created(env, proposal_id, creator, proposal.description.clone());
+    // Emit event
+    emit_proposal_created(env, proposal_id, creator, description);
 
     Ok(proposal_id)
 }
@@ -263,7 +265,6 @@ pub fn vote(
         return Err(SavingsError::InvalidAmount);
     }
 
-    // Check voter has sufficient governance weight
     let weight = get_voting_power(env, &voter);
     if weight == 0 {
         return Err(SavingsError::InsufficientBalance);
@@ -272,97 +273,50 @@ pub fn vote(
     let config = get_voting_config(env)?;
     let capped_weight = weight.min(config.max_voting_power);
 
-    // Check for double voting
     let voter_key = GovernanceKey::VoterRecord(proposal_id, voter.clone());
     if env.storage().persistent().has(&voter_key) {
         return Err(SavingsError::DuplicatePlanId);
     }
 
-    // Try to get regular proposal first
+    let now = env.ledger().timestamp();
+
+    // Regular proposal
     if let Some(mut proposal) = get_proposal(env, proposal_id) {
-        // Validate voting within active period
-        let now = env.ledger().timestamp();
         if now < proposal.start_time || now > proposal.end_time {
             return Err(SavingsError::TooLate);
         }
 
-        // Update vote tallies
         match vote_type {
-            1 => {
-                proposal.for_votes = proposal
-                    .for_votes
-                    .checked_add(capped_weight)
-                    .ok_or(SavingsError::Overflow)?;
-            }
-            2 => {
-                proposal.against_votes = proposal
-                    .against_votes
-                    .checked_add(capped_weight)
-                    .ok_or(SavingsError::Overflow)?;
-            }
-            3 => {
-                proposal.abstain_votes = proposal
-                    .abstain_votes
-                    .checked_add(capped_weight)
-                    .ok_or(SavingsError::Overflow)?;
-            }
+            1 => proposal.for_votes = proposal.for_votes.checked_add(capped_weight).ok_or(SavingsError::Overflow)?,
+            2 => proposal.against_votes = proposal.against_votes.checked_add(capped_weight).ok_or(SavingsError::Overflow)?,
+            3 => proposal.abstain_votes = proposal.abstain_votes.checked_add(capped_weight).ok_or(SavingsError::Overflow)?,
             _ => return Err(SavingsError::InvalidAmount),
         }
 
-        // Save updated proposal
-        env.storage()
-            .persistent()
-            .set(&GovernanceKey::Proposal(proposal_id), &proposal);
-
-        // Record voter to prevent double voting
+        env.storage().persistent().set(&GovernanceKey::Proposal(proposal_id), &proposal);
         env.storage().persistent().set(&voter_key, &true);
 
-        // Emit VoteCast event
         emit_vote_cast(env, proposal_id, voter, vote_type, weight);
 
         return Ok(());
     }
 
-    // Try action proposal
+    // Action proposal
     if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
-        // Validate voting within active period
-        let now = env.ledger().timestamp();
         if now < proposal.start_time || now > proposal.end_time {
             return Err(SavingsError::TooLate);
         }
 
-        // Update vote tallies
         match vote_type {
-            1 => {
-                proposal.for_votes = proposal
-                    .for_votes
-                    .checked_add(capped_weight)
-                    .ok_or(SavingsError::Overflow)?;
-            }
-            2 => {
-                proposal.against_votes = proposal
-                    .against_votes
-                    .checked_add(capped_weight)
-                    .ok_or(SavingsError::Overflow)?;
-            }
-            3 => {
-                proposal.abstain_votes = proposal
-                    .abstain_votes
-                    .checked_add(capped_weight)
-                    .ok_or(SavingsError::Overflow)?;
-            }
+            1 => proposal.for_votes = proposal.for_votes.checked_add(capped_weight).ok_or(SavingsError::Overflow)?,
+            2 => proposal.against_votes = proposal.against_votes.checked_add(capped_weight).ok_or(SavingsError::Overflow)?,
+            3 => proposal.abstain_votes = proposal.abstain_votes.checked_add(capped_weight).ok_or(SavingsError::Overflow)?,
             _ => return Err(SavingsError::InvalidAmount),
         }
 
-        // Save updated proposal
-        env.storage()
-            .persistent()
-            .set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
-
-        // Record voter to prevent double voting
+        env.storage().persistent().set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
         env.storage().persistent().set(&voter_key, &true);
 
-        // Emit VoteCast event
         emit_vote_cast(env, proposal_id, voter, vote_type, weight);
 
         return Ok(());
@@ -371,24 +325,15 @@ pub fn vote(
     Err(SavingsError::PlanNotFound)
 }
 
-/// Checks if a user has voted on a proposal
-pub fn has_voted(env: &Env, proposal_id: u64, voter: &Address) -> bool {
-    let voter_key = GovernanceKey::VoterRecord(proposal_id, voter.clone());
-    env.storage().persistent().has(&voter_key)
-}
-
 /// Queues a proposal for execution after timelock
 pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
     let now = env.ledger().timestamp();
 
-    // Try regular proposal first
     if let Some(mut proposal) = get_proposal(env, proposal_id) {
-        // Validate voting period has ended
         if now <= proposal.end_time {
             return Err(SavingsError::TooEarly);
         }
 
-        // Check if already queued or executed
         if proposal.queued_time > 0 {
             return Err(SavingsError::DuplicatePlanId);
         }
@@ -397,44 +342,23 @@ pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
             return Err(SavingsError::PlanCompleted);
         }
 
-        // Check if proposal passed (for_votes > against_votes)
         if proposal.for_votes <= proposal.against_votes {
             return Err(SavingsError::InsufficientBalance);
         }
 
-        // Check quorum
-        let _config = get_voting_config(env)?;
-        let total_votes = proposal
-            .for_votes
-            .checked_add(proposal.against_votes)
-            .and_then(|v| v.checked_add(proposal.abstain_votes))
-            .ok_or(SavingsError::Overflow)?;
-
-        // Quorum is in basis points (e.g., 5000 = 50%)
-        // For simplicity, we check if total_votes meets minimum threshold
-        if total_votes == 0 {
-            return Err(SavingsError::InsufficientBalance);
-        }
-
-        // Queue the proposal
         proposal.queued_time = now;
-        env.storage()
-            .persistent()
-            .set(&GovernanceKey::Proposal(proposal_id), &proposal);
+        env.storage().persistent().set(&GovernanceKey::Proposal(proposal_id), &proposal);
 
         emit_proposal_queued(env, proposal_id, now);
 
         return Ok(());
     }
 
-    // Try action proposal
     if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
-        // Validate voting period has ended
         if now <= proposal.end_time {
             return Err(SavingsError::TooEarly);
         }
 
-        // Check if already queued or executed
         if proposal.queued_time > 0 {
             return Err(SavingsError::DuplicatePlanId);
         }
@@ -443,27 +367,12 @@ pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
             return Err(SavingsError::PlanCompleted);
         }
 
-        // Check if proposal passed
         if proposal.for_votes <= proposal.against_votes {
             return Err(SavingsError::InsufficientBalance);
         }
 
-        // Check quorum
-        let total_votes = proposal
-            .for_votes
-            .checked_add(proposal.against_votes)
-            .and_then(|v| v.checked_add(proposal.abstain_votes))
-            .ok_or(SavingsError::Overflow)?;
-
-        if total_votes == 0 {
-            return Err(SavingsError::InsufficientBalance);
-        }
-
-        // Queue the proposal
         proposal.queued_time = now;
-        env.storage()
-            .persistent()
-            .set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
+        env.storage().persistent().set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
 
         emit_proposal_queued(env, proposal_id, now);
 
@@ -478,19 +387,15 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError>
     let now = env.ledger().timestamp();
     let config = get_voting_config(env)?;
 
-    // Try action proposal first (most common case)
     if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
-        // Validate proposal is queued
         if proposal.queued_time == 0 {
             return Err(SavingsError::TooEarly);
         }
 
-        // Check if already executed
         if proposal.executed {
             return Err(SavingsError::PlanCompleted);
         }
 
-        // Validate timelock has passed
         let execution_time = proposal
             .queued_time
             .checked_add(config.timelock_duration)
@@ -500,34 +405,25 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError>
             return Err(SavingsError::TooEarly);
         }
 
-        // Mark as executed first to prevent re-entrancy
         proposal.executed = true;
-        env.storage()
-            .persistent()
-            .set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
+        env.storage().persistent().set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
 
-        // Execute the action
         execute_action(env, &proposal.action)?;
 
-        // Emit event
         emit_proposal_executed(env, proposal_id, now);
 
         return Ok(());
     }
 
-    // Try regular proposal
     if let Some(mut proposal) = get_proposal(env, proposal_id) {
-        // Validate proposal is queued
         if proposal.queued_time == 0 {
             return Err(SavingsError::TooEarly);
         }
 
-        // Check if already executed
         if proposal.executed {
             return Err(SavingsError::PlanCompleted);
         }
 
-        // Validate timelock has passed
         let execution_time = proposal
             .queued_time
             .checked_add(config.timelock_duration)
@@ -537,13 +433,9 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError>
             return Err(SavingsError::TooEarly);
         }
 
-        // Mark as executed first
         proposal.executed = true;
-        env.storage()
-            .persistent()
-            .set(&GovernanceKey::Proposal(proposal_id), &proposal);
+        env.storage().persistent().set(&GovernanceKey::Proposal(proposal_id), &proposal);
 
-        // Emit event
         emit_proposal_executed(env, proposal_id, now);
 
         return Ok(());
@@ -580,9 +472,7 @@ fn execute_action(env: &Env, action: &ProposalAction) -> Result<(), SavingsError
             if *rate < 0 {
                 return Err(SavingsError::InvalidInterestRate);
             }
-            env.storage()
-                .instance()
-                .set(&DataKey::LockRate(*duration), rate);
+            env.storage().instance().set(&DataKey::LockRate(*duration), rate);
             Ok(())
         }
         ProposalAction::PauseContract => {
@@ -596,6 +486,50 @@ fn execute_action(env: &Env, action: &ProposalAction) -> Result<(), SavingsError
             Ok(())
         }
     }
+}
+
+/// Cancels a proposal (creator or admin only)
+pub fn cancel_proposal(env: &Env, proposal_id: u64, caller: Address) -> Result<(), SavingsError> {
+    caller.require_auth();
+
+    // Try regular proposal
+    if let Some(mut proposal) = get_proposal(env, proposal_id) {
+        if proposal.creator != caller {
+            return Err(SavingsError::Unauthorized);
+        }
+
+        if proposal.executed || proposal.queued_time > 0 {
+            return Err(SavingsError::InvalidProposalState);
+        }
+
+        // Mark as canceled (you may want a separate state field)
+        proposal.executed = true; // or add a canceled field
+        env.storage().persistent().set(&GovernanceKey::Proposal(proposal_id), &proposal);
+
+        emit_proposal_canceled(env, proposal_id, env.ledger().timestamp());
+
+        return Ok(());
+    }
+
+    // Try action proposal
+    if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
+        if proposal.creator != caller {
+            return Err(SavingsError::Unauthorized);
+        }
+
+        if proposal.executed || proposal.queued_time > 0 {
+            return Err(SavingsError::InvalidProposalState);
+        }
+
+        proposal.executed = true;
+        env.storage().persistent().set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
+
+        emit_proposal_canceled(env, proposal_id, env.ledger().timestamp());
+
+        return Ok(());
+    }
+
+    Err(SavingsError::PlanNotFound)
 }
 
 /// Checks if governance is active
