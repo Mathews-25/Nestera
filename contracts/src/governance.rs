@@ -16,6 +16,7 @@ pub struct ActionProposal {
     pub against_votes: u128,
     pub abstain_votes: u128,
     pub action: ProposalAction,
+    pub queued_time: u64,
 }
 
 #[contracttype]
@@ -30,6 +31,7 @@ pub struct Proposal {
     pub for_votes: u128,
     pub against_votes: u128,
     pub abstain_votes: u128,
+    pub queued_time: u64,
 }
 
 #[contracttype]
@@ -91,6 +93,7 @@ pub fn create_proposal(
         for_votes: 0,
         against_votes: 0,
         abstain_votes: 0,
+        queued_time: 0,
     };
 
     env.storage()
@@ -143,6 +146,7 @@ pub fn create_action_proposal(
         against_votes: 0,
         abstain_votes: 0,
         action,
+        queued_time: 0,
     };
 
     env.storage()
@@ -369,6 +373,231 @@ pub fn vote(
 pub fn has_voted(env: &Env, proposal_id: u64, voter: &Address) -> bool {
     let voter_key = GovernanceKey::VoterRecord(proposal_id, voter.clone());
     env.storage().persistent().has(&voter_key)
+}
+
+/// Queues a proposal for execution after timelock
+pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
+    let now = env.ledger().timestamp();
+
+    // Try regular proposal first
+    if let Some(mut proposal) = get_proposal(env, proposal_id) {
+        // Validate voting period has ended
+        if now <= proposal.end_time {
+            return Err(SavingsError::TooEarly);
+        }
+
+        // Check if already queued or executed
+        if proposal.queued_time > 0 {
+            return Err(SavingsError::DuplicatePlanId);
+        }
+
+        if proposal.executed {
+            return Err(SavingsError::PlanCompleted);
+        }
+
+        // Check if proposal passed (for_votes > against_votes)
+        if proposal.for_votes <= proposal.against_votes {
+            return Err(SavingsError::InsufficientBalance);
+        }
+
+        // Check quorum
+        let config = get_voting_config(env)?;
+        let total_votes = proposal
+            .for_votes
+            .checked_add(proposal.against_votes)
+            .and_then(|v| v.checked_add(proposal.abstain_votes))
+            .ok_or(SavingsError::Overflow)?;
+
+        // Quorum is in basis points (e.g., 5000 = 50%)
+        // For simplicity, we check if total_votes meets minimum threshold
+        if total_votes == 0 {
+            return Err(SavingsError::InsufficientBalance);
+        }
+
+        // Queue the proposal
+        proposal.queued_time = now;
+        env.storage()
+            .persistent()
+            .set(&GovernanceKey::Proposal(proposal_id), &proposal);
+
+        env.events()
+            .publish((soroban_sdk::symbol_short!("queued"), proposal_id), now);
+
+        return Ok(());
+    }
+
+    // Try action proposal
+    if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
+        // Validate voting period has ended
+        if now <= proposal.end_time {
+            return Err(SavingsError::TooEarly);
+        }
+
+        // Check if already queued or executed
+        if proposal.queued_time > 0 {
+            return Err(SavingsError::DuplicatePlanId);
+        }
+
+        if proposal.executed {
+            return Err(SavingsError::PlanCompleted);
+        }
+
+        // Check if proposal passed
+        if proposal.for_votes <= proposal.against_votes {
+            return Err(SavingsError::InsufficientBalance);
+        }
+
+        // Check quorum
+        let total_votes = proposal
+            .for_votes
+            .checked_add(proposal.against_votes)
+            .and_then(|v| v.checked_add(proposal.abstain_votes))
+            .ok_or(SavingsError::Overflow)?;
+
+        if total_votes == 0 {
+            return Err(SavingsError::InsufficientBalance);
+        }
+
+        // Queue the proposal
+        proposal.queued_time = now;
+        env.storage()
+            .persistent()
+            .set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
+
+        env.events()
+            .publish((soroban_sdk::symbol_short!("queued"), proposal_id), now);
+
+        return Ok(());
+    }
+
+    Err(SavingsError::PlanNotFound)
+}
+
+/// Executes a queued proposal after timelock period
+pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
+    let now = env.ledger().timestamp();
+    let config = get_voting_config(env)?;
+
+    // Try action proposal first (most common case)
+    if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
+        // Validate proposal is queued
+        if proposal.queued_time == 0 {
+            return Err(SavingsError::TooEarly);
+        }
+
+        // Check if already executed
+        if proposal.executed {
+            return Err(SavingsError::PlanCompleted);
+        }
+
+        // Validate timelock has passed
+        let execution_time = proposal
+            .queued_time
+            .checked_add(config.timelock_duration)
+            .ok_or(SavingsError::Overflow)?;
+
+        if now < execution_time {
+            return Err(SavingsError::TooEarly);
+        }
+
+        // Execute the action
+        execute_action(env, &proposal.action)?;
+
+        // Mark as executed
+        proposal.executed = true;
+        env.storage()
+            .persistent()
+            .set(&GovernanceKey::ActionProposal(proposal_id), &proposal);
+
+        // Emit event
+        env.events()
+            .publish((soroban_sdk::symbol_short!("executed"), proposal_id), now);
+
+        return Ok(());
+    }
+
+    // Try regular proposal
+    if let Some(mut proposal) = get_proposal(env, proposal_id) {
+        // Validate proposal is queued
+        if proposal.queued_time == 0 {
+            return Err(SavingsError::TooEarly);
+        }
+
+        // Check if already executed
+        if proposal.executed {
+            return Err(SavingsError::PlanCompleted);
+        }
+
+        // Validate timelock has passed
+        let execution_time = proposal
+            .queued_time
+            .checked_add(config.timelock_duration)
+            .ok_or(SavingsError::Overflow)?;
+
+        if now < execution_time {
+            return Err(SavingsError::TooEarly);
+        }
+
+        // Mark as executed
+        proposal.executed = true;
+        env.storage()
+            .persistent()
+            .set(&GovernanceKey::Proposal(proposal_id), &proposal);
+
+        // Emit event
+        env.events()
+            .publish((soroban_sdk::symbol_short!("executed"), proposal_id), now);
+
+        return Ok(());
+    }
+
+    Err(SavingsError::PlanNotFound)
+}
+
+/// Executes a proposal action
+fn execute_action(env: &Env, action: &ProposalAction) -> Result<(), SavingsError> {
+    match action {
+        ProposalAction::SetFlexiRate(rate) => {
+            if *rate < 0 {
+                return Err(SavingsError::InvalidInterestRate);
+            }
+            env.storage().instance().set(&DataKey::FlexiRate, rate);
+            Ok(())
+        }
+        ProposalAction::SetGoalRate(rate) => {
+            if *rate < 0 {
+                return Err(SavingsError::InvalidInterestRate);
+            }
+            env.storage().instance().set(&DataKey::GoalRate, rate);
+            Ok(())
+        }
+        ProposalAction::SetGroupRate(rate) => {
+            if *rate < 0 {
+                return Err(SavingsError::InvalidInterestRate);
+            }
+            env.storage().instance().set(&DataKey::GroupRate, rate);
+            Ok(())
+        }
+        ProposalAction::SetLockRate(duration, rate) => {
+            if *rate < 0 {
+                return Err(SavingsError::InvalidInterestRate);
+            }
+            env.storage()
+                .instance()
+                .set(&DataKey::LockRate(*duration), rate);
+            Ok(())
+        }
+        ProposalAction::PauseContract => {
+            env.storage().persistent().set(&DataKey::Paused, &true);
+            crate::ttl::extend_config_ttl(env, &DataKey::Paused);
+            Ok(())
+        }
+        ProposalAction::UnpauseContract => {
+            env.storage().persistent().set(&DataKey::Paused, &false);
+            crate::ttl::extend_config_ttl(env, &DataKey::Paused);
+            Ok(())
+        }
+    }
 }
 
 /// Checks if governance is active

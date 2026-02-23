@@ -831,6 +831,16 @@ impl NesteraContract {
         governance::has_voted(&env, proposal_id, &voter)
     }
 
+    /// Queues a proposal for execution after timelock
+    pub fn queue_proposal(env: Env, proposal_id: u64) -> Result<(), SavingsError> {
+        governance::queue_proposal(&env, proposal_id)
+    }
+
+    /// Executes a queued proposal after timelock period
+    pub fn execute_proposal(env: Env, proposal_id: u64) -> Result<(), SavingsError> {
+        governance::execute_proposal(&env, proposal_id)
+    }
+
     /// Activates governance (admin only, one-time)
     pub fn activate_governance(env: Env, admin: Address) -> Result<(), SavingsError> {
         governance::activate_governance(&env, admin)
@@ -846,6 +856,8 @@ impl NesteraContract {
 mod admin_tests;
 #[cfg(test)]
 mod config_tests;
+#[cfg(test)]
+mod execution_tests;
 #[cfg(test)]
 mod governance_tests;
 #[cfg(test)]
