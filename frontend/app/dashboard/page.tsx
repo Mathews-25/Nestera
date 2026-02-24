@@ -2,6 +2,7 @@ import React from "react";
 import NetWorthCard from "../components/dashboard/NetWorthCard";
 import QuickActionsGrid from "../components/dashboard/QuickActionsGrid";
 import ActivePoolList from "../components/dashboard/ActivePoolList";
+import RecentTransactionsWidget from "../components/dashboard/RecentTransactionsWidget";
 
 export default function DashboardPage() {
   return (
@@ -16,13 +17,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Second row: ActivePoolList + right placeholder */}
+      {/* Second row: ActivePoolList + RecentTransactions */}
       <div className="mt-5 flex gap-5">
         <div className="flex-1 max-w-[760px]">
           <ActivePoolList />
         </div>
         <div className="w-[320px] hidden lg:block">
-          <div className="h-[120px] rounded-xl bg-[rgba(6,18,20,0.4)]" />
+          <RecentTransactionsWidget />
         </div>
       </div>
     </div>
