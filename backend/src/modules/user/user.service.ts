@@ -17,7 +17,7 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   async findById(id: string) {
     const user = await this.userRepository.findOne({
