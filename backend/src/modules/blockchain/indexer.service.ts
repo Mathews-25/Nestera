@@ -3,10 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Interval } from '@nestjs/schedule';
 import { DeadLetterEvent } from './entities/dead-letter-event.entity';
+import { DepositHandler } from './event-handlers/deposit.handler';
 
 /** Shape of a raw Soroban event as returned by the RPC. */
 interface SorobanEvent {
+  id?: string;
   ledger: number;
+  topic?: unknown[];
+  value?: unknown;
+  txHash?: string;
   [key: string]: unknown;
 }
 
@@ -18,6 +23,7 @@ export class IndexerService implements OnModuleInit {
   constructor(
     @InjectRepository(DeadLetterEvent)
     private readonly dlqRepo: Repository<DeadLetterEvent>,
+    private readonly depositHandler: DepositHandler,
   ) {}
 
   onModuleInit() {
@@ -75,7 +81,14 @@ export class IndexerService implements OnModuleInit {
    */
   private async handleEvent(event: SorobanEvent): Promise<void> {
     this.logger.debug(`Processing event at ledger=${event.ledger}`);
-    // TODO: dispatch to domain-specific handlers (e.g. governance, savings)
+
+    const handledByDeposit = await this.depositHandler.handle(event);
+    if (handledByDeposit) {
+      this.logger.debug(`Handled deposit event at ledger=${event.ledger}`);
+      return;
+    }
+
+    // TODO: dispatch to other domain-specific handlers.
   }
 
   /** Fetches new Soroban events from the RPC since the last processed ledger. */
