@@ -42,6 +42,9 @@ export class UserSubscription {
   @Column({ type: 'date', nullable: true })
   endDate: Date | null;
 
+  @Column('decimal', { precision: 20, scale: 7, default: 0 })
+  totalInterestEarned: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

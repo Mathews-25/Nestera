@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Interval } from '@nestjs/schedule';
 import { DeadLetterEvent } from './entities/dead-letter-event.entity';
 import { DepositHandler } from './event-handlers/deposit.handler';
+import { YieldHandler } from './event-handlers/yield.handler';
 
 /** Shape of a raw Soroban event as returned by the RPC. */
 interface SorobanEvent {
@@ -24,6 +25,7 @@ export class IndexerService implements OnModuleInit {
     @InjectRepository(DeadLetterEvent)
     private readonly dlqRepo: Repository<DeadLetterEvent>,
     private readonly depositHandler: DepositHandler,
+    private readonly yieldHandler: YieldHandler,
   ) {}
 
   onModuleInit() {
@@ -85,6 +87,12 @@ export class IndexerService implements OnModuleInit {
     const handledByDeposit = await this.depositHandler.handle(event);
     if (handledByDeposit) {
       this.logger.debug(`Handled deposit event at ledger=${event.ledger}`);
+      return;
+    }
+
+    const handledByYield = await this.yieldHandler.handle(event);
+    if (handledByYield) {
+      this.logger.debug(`Handled yield event at ledger=${event.ledger}`);
       return;
     }
 
