@@ -3,6 +3,8 @@ import {
   Get,
   Post,
   Body,
+  Patch,
+  Delete,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -22,7 +24,10 @@ import { Throttle } from '@nestjs/throttler';
 import { SavingsService } from './savings.service';
 import { SavingsProduct } from './entities/savings-product.entity';
 import { UserSubscription } from './entities/user-subscription.entity';
+import { SavingsGoal } from './entities/savings-goal.entity';
 import { SubscribeDto } from './dto/subscribe.dto';
+import { CreateGoalDto } from './dto/create-goal.dto';
+import { UpdateGoalDto } from './dto/update-goal.dto';
 import { ProductDetailsDto } from './dto/product-details.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -155,5 +160,87 @@ export class SavingsController {
     @CurrentUser() user: { id: string; email: string },
   ): Promise<SavingsGoalProgress[]> {
     return await this.savingsService.findMyGoals(user.id);
+  }
+
+  @Post('goals')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new savings goal' })
+  @ApiBody({ type: CreateGoalDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Savings goal created',
+    type: SavingsGoal,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid goal data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async createGoal(
+    @Body() dto: CreateGoalDto,
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<SavingsGoal> {
+    return await this.savingsService.createGoal(
+      user.id,
+      dto.goalName,
+      dto.targetAmount,
+      dto.targetDate,
+      dto.metadata,
+    );
+  }
+
+  @Patch('goals/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update a savings goal (user-scoped via JwtAuthGuard)',
+    description:
+      'Update goal details. Prevents IDOR by validating goal ownership via userId from JWT token.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    format: 'uuid',
+    description: 'Goal UUID',
+  })
+  @ApiBody({ type: UpdateGoalDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Goal updated',
+    type: SavingsGoal,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid goal data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Goal not found' })
+  async updateGoal(
+    @Param('id') id: string,
+    @Body() dto: UpdateGoalDto,
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<SavingsGoal> {
+    return await this.savingsService.updateGoal(id, user.id, dto);
+  }
+
+  @Delete('goals/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a savings goal (user-scoped via JwtAuthGuard)',
+    description:
+      'Delete a goal. Prevents IDOR by validating goal ownership via userId from JWT token.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    format: 'uuid',
+    description: 'Goal UUID',
+  })
+  @ApiResponse({ status: 204, description: 'Goal deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Goal not found' })
+  async deleteGoal(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; email: string },
+  ): Promise<void> {
+    return await this.savingsService.deleteGoal(id, user.id);
   }
 }
