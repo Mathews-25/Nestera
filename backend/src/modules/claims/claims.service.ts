@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MedicalClaim, ClaimStatus } from './entities/medical-claim.entity';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { HospitalIntegrationService } from '../hospital-integration/hospital-integration.service';
@@ -13,6 +14,7 @@ export class ClaimsService {
     @InjectRepository(MedicalClaim)
     private readonly claimsRepository: Repository<MedicalClaim>,
     private readonly hospitalIntegrationService: HospitalIntegrationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createClaim(createClaimDto: CreateClaimDto): Promise<MedicalClaim> {
@@ -51,12 +53,27 @@ export class ClaimsService {
           claimId,
         );
 
+      const previousStatus = claim.status;
       claim.status = verification.verified
         ? ClaimStatus.APPROVED
         : ClaimStatus.REJECTED;
       claim.notes = verification.notes || claim.notes;
 
-      return await this.claimsRepository.save(claim);
+      const updatedClaim = await this.claimsRepository.save(claim);
+
+      // Emit claim.updated event for notifications
+      if (previousStatus !== claim.status) {
+        this.eventEmitter.emit('claim.updated', {
+          userId: claim.patientId, // Assuming patientId is the userId
+          claimId: claim.id,
+          status: claim.status,
+          claimAmount: claim.claimAmount,
+          notes: claim.notes,
+          timestamp: new Date(),
+        });
+      }
+
+      return updatedClaim;
     } catch (error) {
       this.logger.error(`Failed to verify claim ${claimId}:`, error);
       throw error;
