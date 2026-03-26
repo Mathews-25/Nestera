@@ -2,12 +2,18 @@
 
 import React from "react";
 import { Download, History, Search, ChevronDown } from "lucide-react";
+import TransactionRow, { TransactionType, TransactionStatus } from "./components/TransactionRow";
 
-type TransactionRow = {
+type TransactionRowData = {
   date: string;
+  time: string;
+  transactionId: string;
   title: string;
-  amount: string;
-  token: string;
+  type: TransactionType;
+  assetDetails: string;
+  amount: number;
+  currency: string;
+  status: TransactionStatus;
   hash: string;
 };
 
@@ -17,12 +23,14 @@ function csvEscape(value: string) {
   return needsQuotes ? `"${escaped}"` : escaped;
 }
 
-function toCsv(rows: TransactionRow[]) {
-  const header = ["date", "title", "amount", "token", "hash"];
+function toCsv(rows: TransactionRowData[]) {
+  const header = ["date", "time", "transactionId", "type", "assetDetails", "amount", "currency", "status", "hash"];
   const lines = [
     header.join(","),
     ...rows.map((r) =>
-      [r.date, r.title, r.amount, r.token, r.hash].map(csvEscape).join(","),
+      [r.date, r.time, r.transactionId, r.type, r.assetDetails, r.amount.toString(), r.currency, r.status, r.hash]
+        .map(csvEscape)
+        .join(","),
     ),
   ];
   return `${lines.join("\n")}\n`;
@@ -45,33 +53,53 @@ function downloadTextFile(
 }
 
 export default function TransactionHistoryPage() {
-  const transactions: TransactionRow[] = [
+  const transactions: TransactionRowData[] = [
     {
-      date: "2026-03-25 10:23",
+      date: "2026-03-25",
+      time: "10:23",
+      transactionId: "0x9f2a...a1b3",
       title: "Deposit USDC",
-      amount: "+500.00",
-      token: "USDC",
+      type: "deposit",
+      assetDetails: "USDC Wallet",
+      amount: 500.0,
+      currency: "USDC",
+      status: "completed",
       hash: "0x9f2a...a1b3",
     },
     {
-      date: "2026-03-25 08:15",
+      date: "2026-03-25",
+      time: "08:15",
+      transactionId: "0x3d10...c92e",
       title: "Yield Earned",
-      amount: "+12.45",
-      token: "USDC",
+      type: "yield",
+      assetDetails: "Auto-compound reward",
+      amount: 12.45,
+      currency: "USDC",
+      status: "completed",
       hash: "0x3d10...c92e",
     },
     {
-      date: "2026-03-24 16:32",
+      date: "2026-03-24",
+      time: "16:32",
+      transactionId: "0x7a4c...1ff2",
       title: "Swap ETH → USDC",
-      amount: "-0.50",
-      token: "ETH",
+      type: "swap",
+      assetDetails: "0.5 ETH for 835 USDC",
+      amount: -0.5,
+      currency: "ETH",
+      status: "completed",
       hash: "0x7a4c...1ff2",
     },
     {
-      date: "2026-03-24 14:18",
+      date: "2026-03-24",
+      time: "14:18",
+      transactionId: "0x0b22...8e91",
       title: "Withdraw USDC",
-      amount: "-250.00",
-      token: "USDC",
+      type: "withdraw",
+      assetDetails: "To external wallet",
+      amount: -250.0,
+      currency: "USDC",
+      status: "pending",
       hash: "0x0b22...8e91",
     },
   ];
@@ -144,17 +172,18 @@ export default function TransactionHistoryPage() {
         </div>
 
         {transactions.map((t) => (
-          <div
+          <TransactionRow
             key={t.hash}
-            className="grid grid-cols-12 px-5 py-4 border-b border-white/5 last:border-0 text-sm text-white"
-          >
-            <div className="col-span-4 text-[#dff]">{t.date}</div>
-            <div className="col-span-4 text-[#dff]">{t.title}</div>
-            <div className="col-span-2 text-[#7fbfbf] font-semibold">
-              {t.token}
-            </div>
-            <div className="col-span-2 text-right font-bold">{t.amount}</div>
-          </div>
+            date={t.date}
+            time={t.time}
+            transactionId={t.transactionId}
+            type={t.type}
+            assetDetails={t.assetDetails}
+            amount={t.amount}
+            currency={t.currency}
+            status={t.status}
+            onClick={(id) => console.log('Open transaction', id)}
+          />
         ))}
       </div>
     </div>
